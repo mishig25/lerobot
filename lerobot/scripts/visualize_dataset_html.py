@@ -78,11 +78,11 @@ from lerobot.common.policies.factory import make_policy
 from lerobot.common.utils.utils import init_hydra_config, init_logging
 from lerobot.scripts.eval import get_pretrained_policy_path
 
-datasets_ids=[
-  "pusht",
-  "xarm_lift_medium",
-  "xarm_lift_medium_replay",
-  "xarm_push_medium",
+# datasets_ids=[
+#   "pusht",
+#   "xarm_lift_medium",
+#   "xarm_lift_medium_replay",
+#   "xarm_push_medium",
 #   "xarm_push_medium_replay",
 #   "aloha_sim_insertion_human",
 #   "aloha_sim_insertion_scripted",
@@ -110,7 +110,13 @@ datasets_ids=[
 #   "aloha_static_vinh_cup_left",
 #   "aloha_static_ziploc_slide",
 #   "umi_cup_in_the_wild"
-]
+# ]
+
+from huggingface_hub import HfApi
+api = HfApi()
+datasets_list = list(api.list_datasets(author="lerobot"))
+datasets_ids = [dataset.id.split("/")[-1] for dataset in datasets_list]
+datasets_ids = [id for id in datasets_ids if "image" not in id]
 
 class EpisodeSampler(torch.utils.data.Sampler):
     def __init__(self, dataset, episode_index):
