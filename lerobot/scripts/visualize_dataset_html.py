@@ -146,7 +146,7 @@ def run_server(
     def index():
         # home page redirects to the first episode page
         first_episode_id = episodes[0]
-        return redirect(url_for("show_episode", dataset_id="pusht", episode_id=first_episode_id))
+        return redirect(url_for("show_episode", dataset_id=list(datasets.keys())[0], episode_id=first_episode_id))
 
     @app.route("/<string:dataset_id>/episode_<int:episode_id>")
     def show_episode(dataset_id, episode_id):
