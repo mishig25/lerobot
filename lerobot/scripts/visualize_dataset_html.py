@@ -162,6 +162,7 @@ def run_server(
         ep_csv_url = url_for("static", filename=get_ep_csv_fname(dataset_id, episode_id))
         return render_template(
             "visualize_dataset_template.html",
+            dataset_ids = list(datasets.keys()),
             dataset_id=dataset_id,
             episode_id=episode_id,
             episodes=episodes,
@@ -170,7 +171,7 @@ def run_server(
             ep_csv_url=ep_csv_url,
         )
 
-    app.run(host=host, port=port, debug=True)
+    app.run(host=host, port=port, debug=False)
 
 
 def get_ep_csv_fname(dataset_id: str, episode_id: int):
