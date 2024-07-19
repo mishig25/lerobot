@@ -21,18 +21,6 @@
   <!-- Sidebar -->
   <div id="sidebar" class="w-60 bg-slate-900 p-5 max-h-screen overflow-y-auto">
 
-    <div class="group relative flex min-w-[50%] items-center self-start text-lg font-bold leading-tight mb-4">
-      <svg class="opacity-50 ml-0.5 flex-none group-hover:opacity-100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" width="1em" height="1em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
-         <path d="M16.293 9.293L12 13.586L7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z" fill="currentColor"></path>
-      </svg>
-      <h1 class="text-xl font-semibold whitespace-normal">{{ dataset_info.repo_id }}</h1>
-      <select id="dataset-select" class="absolute inset-0 border-none bg-white text-base opacity-0 outline-none">
-         <option value="/docs/optimum-neuron">AWS Trainium &amp; Inferentia</option>
-         <option value="/docs/accelerate" selected>Accelerate</option>
-         <option value="/docs/sagemaker">Amazon SageMaker</option>
-      </select>
-    </div>
-
     <ul>
       <li>
         Number of samples/frames: {{ dataset_info.num_samples }}
@@ -65,9 +53,23 @@
 
   <!-- Content -->
   <div class="flex-1 max-h-screen flex flex-col gap-4 overflow-y-auto">
-    <h1 class="text-xl font-bold mt-4 font-mono">
-      Episode {{ episode_id }}
-    </h1>
+    <div class="flex gap-x-4 items-center mt-4">
+      <div class="group relative flex items-center self-start text-lg font-bold leading-tight">
+        <svg class="opacity-50 ml-0.5 flex-none group-hover:opacity-100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" width="1em" height="1em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+          <path d="M16.293 9.293L12 13.586L7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z" fill="currentColor"></path>
+        </svg>
+        <h1 class="text-xl font-semibold whitespace-normal">{{ dataset_info.repo_id }}</h1>
+        <select id="dataset-select" class="absolute inset-0 border-none bg-white text-base opacity-0 outline-none">
+          {% for dataset_id in dataset_ids %}
+            <option value="/{{ dataset_id }}/episode_0">{{ dataset_id }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <h2 class="text-lg font-bold font-mono">
+        Episode {{ episode_id }}
+      </h2>
+    </div>
 
     <!-- Videos -->
     <div class="flex flex-wrap gap-1">
