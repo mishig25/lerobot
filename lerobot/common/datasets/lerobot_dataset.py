@@ -50,6 +50,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         image_transforms: Callable | None = None,
         delta_timestamps: dict[list[float]] | None = None,
         video_backend: str | None = None,
+        download_videos: bool = True,
     ):
         super().__init__()
         self.repo_id = repo_id
@@ -68,7 +69,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             self.hf_dataset = reset_episode_index(self.hf_dataset)
         self.stats = load_stats(repo_id, CODEBASE_VERSION, root)
         self.info = load_info(repo_id, CODEBASE_VERSION, root)
-        if self.video:
+        if self.video and download_videos:
             self.videos_dir = load_videos(repo_id, CODEBASE_VERSION, root)
             self.video_backend = video_backend if video_backend is not None else "pyav"
 

@@ -119,7 +119,7 @@ def run_server(
         }
         video_paths = get_episode_video_paths(dataset, episode_id)
         videos_info = [
-            {"url": url_for("static", filename=video_path), "filename": Path(video_path).name}
+            {"url": video_path, "filename": Path(video_path).name}
             for video_path in video_paths
         ]
         ep_csv_url = url_for("static", filename=get_ep_csv_fname(episode_id))
@@ -132,7 +132,7 @@ def run_server(
             ep_csv_url=ep_csv_url,
         )
 
-    app.run(host=host, port=port)
+    app.run(host=host, port=port, debug=True)
 
 
 def get_ep_csv_fname(episode_id: int):
@@ -140,25 +140,19 @@ def get_ep_csv_fname(episode_id: int):
     return ep_csv_fname
 
 
-def write_episode_data_csv(output_dir, file_name, episode_index, dataset, inference_results=None):
+def write_episode_data_csv(output_dir, file_name, episode_index, dataset, dim_state=None, dim_action=None, inference_results=None):
     """Write a csv file containg timeseries data of an episode (e.g. state and action).
     This file will be loaded by Dygraph javascript to plot data in real time."""
     from_idx = dataset.episode_data_index["from"][episode_index]
     to_idx = dataset.episode_data_index["to"][episode_index]
 
-    has_state = "observation.state" in dataset.hf_dataset.features
-    has_action = "action" in dataset.hf_dataset.features
-    has_inference = inference_results is not None
-
     # init header of csv with state and action names
     header = ["timestamp"]
-    if has_state:
-        dim_state = len(dataset.hf_dataset["observation.state"][0])
+    if dim_state:
         header += [f"state_{i}" for i in range(dim_state)]
-    if has_action:
-        dim_action = len(dataset.hf_dataset["action"][0])
+    if dim_action:
         header += [f"action_{i}" for i in range(dim_action)]
-    if has_inference:
+    if inference_results:
         if "action" in inference_results:
             dim_pred_action = inference_results["action"].shape[1]
             header += [f"pred_action_{i}" for i in range(dim_pred_action)]
@@ -167,22 +161,22 @@ def write_episode_data_csv(output_dir, file_name, episode_index, dataset, infere
                 header += [key]
 
     columns = ["timestamp"]
-    if has_state:
+    if dim_state:
         columns += ["observation.state"]
-    if has_action:
+    if dim_action:
         columns += ["action"]
 
     rows = []
     data = dataset.hf_dataset.select_columns(columns)
     for i in range(from_idx, to_idx):
         row = [data[i]["timestamp"].item()]
-        if has_state:
+        if dim_state:
             row += data[i]["observation.state"].tolist()
-        if has_action:
+        if dim_action:
             row += data[i]["action"].tolist()
         rows.append(row)
 
-    if has_inference:
+    if inference_results:
         num_frames = len(rows)
         if "action" in inference_results:
             assert num_frames == inference_results["action"].shape[0]
@@ -206,7 +200,7 @@ def get_episode_video_paths(dataset: LeRobotDataset, ep_index: int) -> list[str]
     # get first frame of episode (hack to get video_path of the episode)
     first_frame_idx = dataset.episode_data_index["from"][ep_index].item()
     return [
-        dataset.hf_dataset.select_columns(key)[first_frame_idx][key]["path"]
+        f"https://huggingface.co/datasets/{dataset.repo_id}/resolve/main/" + dataset.hf_dataset.select_columns(key)[first_frame_idx][key]["path"]
         for key in dataset.video_frame_keys
     ]
 
@@ -308,7 +302,7 @@ def visualize_dataset_html(
         elif policy_method == "forward":
             raise NotImplementedError("TODO(rcadene): do not merge")
     else:
-        dataset = LeRobotDataset(repo_id)
+        dataset = LeRobotDataset(repo_id, download_videos=False)
 
     if not dataset.video:
         raise NotImplementedError(f"Image datasets ({dataset.video=}) are currently not supported.")
@@ -325,9 +319,6 @@ def visualize_dataset_html(
     # so that the http server can get access to the mp4 files.
     static_dir = output_dir / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
-    ln_videos_dir = static_dir / "videos"
-    if not ln_videos_dir.exists():
-        ln_videos_dir.symlink_to(dataset.videos_dir.resolve())
 
     template_dir = Path(__file__).resolve().parent.parent / "templates"
 
@@ -335,6 +326,8 @@ def visualize_dataset_html(
         episodes = list(range(dataset.num_episodes))
 
     logging.info("Writing CSV files")
+    dim_state = len(dataset.hf_dataset["observation.state"][0]) if "observation.state" in dataset.hf_dataset.features else None
+    dim_action = len(dataset.hf_dataset["action"][0]) if "action" in dataset.hf_dataset.features else None
     for episode_index in tqdm.tqdm(episodes):
         inference_results = None
         if has_policy:
@@ -356,7 +349,7 @@ def visualize_dataset_html(
 
         # write states and actions in a csv
         ep_csv_fname = get_ep_csv_fname(episode_index)
-        write_episode_data_csv(static_dir, ep_csv_fname, episode_index, dataset, inference_results)
+        write_episode_data_csv(static_dir, ep_csv_fname, episode_index, dataset, dim_state, dim_action, inference_results)
 
     if serve:
         run_server(dataset, episodes, host, port, static_dir, template_dir)
