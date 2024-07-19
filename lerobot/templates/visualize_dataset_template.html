@@ -19,8 +19,19 @@
 
 <body class="flex h-screen max-h-screen bg-slate-950 text-gray-200">
   <!-- Sidebar -->
-  <div id="sidebar" class="w-60 bg-slate-900 p-5 break-words max-h-screen overflow-y-auto">
-    <h1 class="mb-4 text-xl font-semibold">{{ dataset_info.repo_id }}</h1>
+  <div id="sidebar" class="w-60 bg-slate-900 p-5 max-h-screen overflow-y-auto">
+
+    <div class="group relative flex min-w-[50%] items-center self-start text-lg font-bold leading-tight mb-4">
+      <svg class="opacity-50 ml-0.5 flex-none group-hover:opacity-100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" width="1em" height="1em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+         <path d="M16.293 9.293L12 13.586L7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z" fill="currentColor"></path>
+      </svg>
+      <h1 class="text-xl font-semibold whitespace-normal">{{ dataset_info.repo_id }}</h1>
+      <select id="dataset-select" class="absolute inset-0 border-none bg-white text-base opacity-0 outline-none">
+         <option value="/docs/optimum-neuron">AWS Trainium &amp; Inferentia</option>
+         <option value="/docs/accelerate" selected>Accelerate</option>
+         <option value="/docs/sagemaker">Amazon SageMaker</option>
+      </select>
+    </div>
 
     <ul>
       <li>
@@ -212,6 +223,10 @@
     });
 
     const toggleSidebar = () => (document.getElementById('sidebar').classList.toggle('hidden'));
+
+    document.getElementById('dataset-select').addEventListener('change', function() {
+      window.location.href = this.value;
+    });
   </script>
 </body>
 

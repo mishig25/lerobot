@@ -107,10 +107,10 @@ def run_server(
     def index():
         # home page redirects to the first episode page
         first_episode_id = episodes[0]
-        return redirect(url_for("show_episode", episode_id=first_episode_id))
+        return redirect(url_for("show_episode", dataset_id="xyz", episode_id=first_episode_id))
 
-    @app.route("/episode_<int:episode_id>")
-    def show_episode(episode_id):
+    @app.route("/<string:dataset_id>/episode_<int:episode_id>")
+    def show_episode(dataset_id, episode_id):
         dataset_info = {
             "repo_id": dataset.repo_id,
             "num_samples": dataset.num_samples,
@@ -125,6 +125,7 @@ def run_server(
         ep_csv_url = url_for("static", filename=get_ep_csv_fname(episode_id))
         return render_template(
             "visualize_dataset_template.html",
+            dataset_id=dataset_id,
             episode_id=episode_id,
             episodes=episodes,
             dataset_info=dataset_info,
