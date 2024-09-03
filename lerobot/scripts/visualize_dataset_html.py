@@ -66,6 +66,7 @@ import numpy as np
 from flask import Flask, redirect, render_template, url_for
 
 from lerobot.common.utils.utils import init_logging
+import lerobot
 
 
 def get_ep_csv_fname(episode_id: int):
@@ -169,10 +170,16 @@ def visualize_dataset_html(
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # specifying not to cache
 
     @app.route("/")
-    def index():
+    def hommepage():
+        featured_datasets = [
+            "cadene/koch_bimanual_folding",
+            "lerobot/berkeley_cable_routing",
+            "lerobot/droid_100",
+        ]
         return render_template(
             "visualize_dataset_homepage.html",
-            lerobot_datasets=[5],
+            featured_datasets=featured_datasets,
+            lerobot_datasets=lerobot.available_datasets,
         )
 
     @app.route("/<string:dataset_namespace>/<string:dataset_name>")
