@@ -54,73 +54,18 @@ python lerobot/scripts/visualize_dataset_html.py \
 
 import argparse
 import csv
-import logging
-import shutil
 from io import StringIO
 from pathlib import Path
+import pandas as pd
+import requests
+import tempfile
+import os
+from safetensors import safe_open
 
 import numpy as np
 from flask import Flask, redirect, render_template, url_for
 
-from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.common.utils.utils import init_logging
-
-
-def run_server(
-    dataset: LeRobotDataset,
-    episodes: list[int],
-    host: str,
-    port: str,
-    static_folder: Path,
-    template_folder: Path,
-):
-    app = Flask(__name__, static_folder=static_folder.resolve(), template_folder=template_folder.resolve())
-    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # specifying not to cache
-
-    @app.route("/")
-    def index():
-        # home page redirects to the first episode page
-        [dataset_namespace, dataset_name] = dataset.repo_id.split("/")
-        first_episode_id = episodes[0]
-        return redirect(
-            url_for(
-                "show_episode",
-                dataset_namespace=dataset_namespace,
-                dataset_name=dataset_name,
-                episode_id=first_episode_id,
-            )
-        )
-
-    @app.route("/<string:dataset_namespace>/<string:dataset_name>/episode_<int:episode_id>")
-    def show_episode(dataset_namespace, dataset_name, episode_id):
-        episode_data_csv_str = get_episode_data_csv_str(dataset, episode_id)
-        dataset_info = {
-            "repo_id": dataset.repo_id,
-            "num_samples": dataset.num_samples,
-            "num_episodes": dataset.num_episodes,
-            "fps": dataset.fps,
-        }
-        video_paths = get_episode_video_paths(dataset, episode_id)
-        language_instruction = get_episode_language_instruction(dataset, episode_id)
-        videos_info = [
-            {"url": url_for("static", filename=video_path), "filename": Path(video_path).name}
-            for video_path in video_paths
-        ]
-
-        if language_instruction:
-            videos_info[0]["language_instruction"] = language_instruction
-
-        return render_template(
-            "visualize_dataset_template.html",
-            episode_id=episode_id,
-            episodes=episodes,
-            dataset_info=dataset_info,
-            videos_info=videos_info,
-            has_policy=False,
-            episode_data_csv_str=episode_data_csv_str,
-        )
-
-    app.run(host=host, port=port)
 
 
 def get_ep_csv_fname(episode_id: int):
@@ -128,22 +73,58 @@ def get_ep_csv_fname(episode_id: int):
     return ep_csv_fname
 
 
-def get_episode_data_csv_str(dataset, episode_index):
+def read_remote_safetensors(url, framework="np", device="cpu"):
+    # Download the file
+    response = requests.get(url)
+    response.raise_for_status()  # Raise an exception for HTTP errors
+
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".safetensors") as temp_file:
+        temp_file.write(response.content)
+        temp_file_path = temp_file.name
+
+    try:
+        # Open the safetensors file
+        with safe_open(temp_file_path, framework=framework, device=device) as f:
+            # Read and return the keys
+            keys = list(f.keys())
+            tensors = {key: f.get_tensor(key) for key in keys}
+            return tensors
+    finally:
+        # Clean up the temporary file
+        os.unlink(temp_file_path)
+
+
+def get_video_columns(df):
+    def is_dict_with_path(val):
+        return isinstance(val, dict) and "path" in val
+
+    # Apply the check to each element in the DataFrame
+    mask = df.applymap(is_dict_with_path)
+
+    # Find columns where all values satisfy the condition
+    columns_with_path = mask.all().index[mask.all()].tolist()
+
+    return columns_with_path
+
+
+def get_episode_data_csv_str(df, data_index, episode_index):
     """Get a csv str containg timeseries data of an episode (e.g. state and action).
     This file will be loaded by Dygraph javascript to plot data in real time."""
-    from_idx = dataset.episode_data_index["from"][episode_index]
-    to_idx = dataset.episode_data_index["to"][episode_index]
+    from_idx = data_index["from"][episode_index]
+    to_idx = data_index["to"][episode_index]
 
-    has_state = "observation.state" in dataset.hf_dataset.features
-    has_action = "action" in dataset.hf_dataset.features
+    df_columns = df.columns.tolist()
+    has_state = "observation.state" in df_columns
+    has_action = "action" in df_columns
 
     # init header of csv with state and action names
     header = ["timestamp"]
     if has_state:
-        dim_state = len(dataset.hf_dataset["observation.state"][0])
+        dim_state = len(df["observation.state"][0])
         header += [f"state_{i}" for i in range(dim_state)]
     if has_action:
-        dim_action = len(dataset.hf_dataset["action"][0])
+        dim_action = len(df["action"][0])
         header += [f"action_{i}" for i in range(dim_action)]
 
     columns = ["timestamp"]
@@ -152,9 +133,9 @@ def get_episode_data_csv_str(dataset, episode_index):
     if has_action:
         columns += ["action"]
 
-    data = dataset.hf_dataset.select(range(from_idx, to_idx)).select_columns(columns).with_format("numpy")
+    data = df.loc[from_idx:to_idx, columns]
     rows = np.hstack(
-        (np.expand_dims(data["timestamp"], axis=1), *[data[col] for col in columns[1:]])
+        (np.expand_dims(data["timestamp"], axis=1), *[np.vstack(data[col]) for col in columns[1:]])
     ).tolist()
 
     # Convert data to CSV string
@@ -169,111 +150,76 @@ def get_episode_data_csv_str(dataset, episode_index):
     return csv_string
 
 
-def get_episode_video_paths(dataset: LeRobotDataset, ep_index: int) -> list[str]:
-    # get first frame of episode (hack to get video_path of the episode)
-    first_frame_idx = dataset.episode_data_index["from"][ep_index].item()
-    return [
-        dataset.hf_dataset.select_columns(key)[first_frame_idx][key]["path"]
-        for key in dataset.video_frame_keys
-    ]
-
-
-def get_episode_language_instruction(dataset: LeRobotDataset, ep_index: int) -> list[str]:
-    # check if the dataset has language instructions
-    if "language_instruction" not in dataset.hf_dataset.features:
-        return None
-
-    # get first frame index
-    first_frame_idx = dataset.episode_data_index["from"][ep_index].item()
-
-    language_instruction = dataset.hf_dataset[first_frame_idx]["language_instruction"]
-    # TODO (michel-aractingi) hack to get the sentence, some strings in openx are badly stored
-    # with the tf.tensor appearing in the string
-    return language_instruction.removeprefix("tf.Tensor(b'").removesuffix("', shape=(), dtype=string)")
+def get_episode_video_paths(df: pd.DataFrame, repo_id: str, ep_index: int) -> list[str]:
+    video_columns = get_video_columns(df)
+    paths = [val["path"] for val in df.loc[ep_index, video_columns].tolist()]
+    paths = [f"https://huggingface.co/datasets/{repo_id}/resolve/main/{p}" for p in paths]
+    return paths
 
 
 def visualize_dataset_html(
-    repo_id: str,
-    root: Path | None = None,
-    episodes: list[int] = None,
-    output_dir: Path | None = None,
-    serve: bool = True,
     host: str = "127.0.0.1",
     port: int = 9090,
-    force_override: bool = False,
 ) -> Path | None:
     init_logging()
 
-    dataset = LeRobotDataset(repo_id, root=root)
-
-    if not dataset.video:
-        raise NotImplementedError(f"Image datasets ({dataset.video=}) are currently not supported.")
-
-    if output_dir is None:
-        output_dir = f"outputs/visualize_dataset_html/{repo_id}"
-
-    output_dir = Path(output_dir)
-    if output_dir.exists():
-        if force_override:
-            shutil.rmtree(output_dir)
-        else:
-            logging.info(f"Output directory already exists. Loading from it: '{output_dir}'")
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create a simlink from the dataset video folder containg mp4 files to the output directory
-    # so that the http server can get access to the mp4 files.
-    static_dir = output_dir / "static"
-    static_dir.mkdir(parents=True, exist_ok=True)
-    ln_videos_dir = static_dir / "videos"
-    if not ln_videos_dir.exists():
-        ln_videos_dir.symlink_to(dataset.videos_dir.resolve())
-
     template_dir = Path(__file__).resolve().parent.parent / "templates"
 
-    if episodes is None:
-        episodes = list(range(dataset.num_episodes))
+    app = Flask(__name__, template_folder=template_dir.resolve())
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # specifying not to cache
 
-    logging.info("Writing CSV files")
+    @app.route("/")
+    def index():
+        # home page redirects to the first episode page
+        [dataset_namespace, dataset_name] = "lerobot/aloha_mobile_chair".split("/")
+        first_episode_id = 0
+        return redirect(
+            url_for(
+                "show_episode",
+                dataset_namespace=dataset_namespace,
+                dataset_name=dataset_name,
+                episode_id=first_episode_id,
+            )
+        )
 
-    if serve:
-        run_server(dataset, episodes, host, port, static_dir, template_dir)
+    @app.route("/<string:dataset_namespace>/<string:dataset_name>/episode_<int:episode_id>")
+    def show_episode(dataset_namespace, dataset_name, episode_id):
+        repo_id = f"{dataset_namespace}/{dataset_name}"
+        url_data = f"https://huggingface.co/datasets/{repo_id}/resolve/main/data/train-00000-of-00001.parquet"
+        url_index = (
+            f"https://huggingface.co/datasets/{repo_id}/resolve/main/meta_data/episode_data_index.safetensors"
+        )
+
+        data_index = read_remote_safetensors(url_index)
+        df = pd.read_parquet(url_data)
+
+        episode_data_csv_str = get_episode_data_csv_str(df, data_index, episode_id)
+
+        dataset_info = {
+            "repo_id": repo_id,
+            "num_episodes": len(data_index["from"]),
+        }
+        video_paths = get_episode_video_paths(df, repo_id, episode_id)
+        videos_info = [{"url": video_path, "filename": Path(video_path).name} for video_path in video_paths]
+
+        episodes = [idx for idx in range(len(data_index["from"]))]
+
+        return render_template(
+            "visualize_dataset_template.html",
+            episode_id=episode_id,
+            episodes=episodes,
+            dataset_info=dataset_info,
+            videos_info=videos_info,
+            has_policy=False,
+            episode_data_csv_str=episode_data_csv_str,
+        )
+
+    app.run(host=host, port=port, debug=True)
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--repo-id",
-        type=str,
-        required=True,
-        help="Name of hugging face repositery containing a LeRobotDataset dataset (e.g. `lerobot/pusht` for https://huggingface.co/datasets/lerobot/pusht).",
-    )
-    parser.add_argument(
-        "--root",
-        type=Path,
-        default=None,
-        help="Root directory for a dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
-    )
-    parser.add_argument(
-        "--episodes",
-        type=int,
-        nargs="*",
-        default=None,
-        help="Episode indices to visualize (e.g. `0 1 5 6` to load episodes of index 0, 1, 5 and 6). By default loads all episodes.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=None,
-        help="Directory path to write html files and kickoff a web server. By default write them to 'outputs/visualize_dataset/REPO_ID'.",
-    )
-    parser.add_argument(
-        "--serve",
-        type=int,
-        default=1,
-        help="Launch web server.",
-    )
     parser.add_argument(
         "--host",
         type=str,
@@ -285,12 +231,6 @@ def main():
         type=int,
         default=9090,
         help="Web port used by the http server.",
-    )
-    parser.add_argument(
-        "--force-override",
-        type=int,
-        default=0,
-        help="Delete the output directory if it exists already.",
     )
 
     args = parser.parse_args()
