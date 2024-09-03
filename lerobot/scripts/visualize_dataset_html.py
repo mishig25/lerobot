@@ -151,9 +151,10 @@ def get_episode_data_csv_str(df, data_index, episode_index):
     return csv_string
 
 
-def get_episode_video_paths(df: pd.DataFrame, repo_id: str, ep_index: int) -> list[str]:
+def get_episode_video_paths(df: pd.DataFrame, data_index, repo_id: str, episode_index: int) -> list[str]:
+    from_idx = data_index["from"][episode_index]
     video_columns = get_video_columns(df)
-    paths = [val["path"] for val in df.loc[ep_index, video_columns].tolist()]
+    paths = [val["path"] for val in df.loc[from_idx, video_columns].tolist()]
     paths = [f"https://huggingface.co/datasets/{repo_id}/resolve/main/{p}" for p in paths]
     return paths
 
@@ -211,7 +212,7 @@ def visualize_dataset_html(
             "repo_id": repo_id,
             "num_episodes": len(data_index["from"]),
         }
-        video_paths = get_episode_video_paths(df, repo_id, episode_id)
+        video_paths = get_episode_video_paths(df, data_index, repo_id, episode_id)
         videos_info = [{"url": video_path, "filename": Path(video_path).name} for video_path in video_paths]
 
         episodes = [idx for idx in range(len(data_index["from"]))]
