@@ -170,8 +170,13 @@ def visualize_dataset_html(
 
     @app.route("/")
     def index():
-        # home page redirects to the first episode page
-        [dataset_namespace, dataset_name] = "lerobot/aloha_mobile_chair".split("/")
+        return render_template(
+            "visualize_dataset_homepage.html",
+            lerobot_datasets=[5],
+        )
+
+    @app.route("/<string:dataset_namespace>/<string:dataset_name>")
+    def show_first_episode(dataset_namespace, dataset_name):
         first_episode_id = 0
         return redirect(
             url_for(
