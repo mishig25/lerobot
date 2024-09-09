@@ -25,6 +25,37 @@
     <div class="fixed inset-0 bg-black bg-opacity-80"></div>
     <div class="relative z-10 flex flex-col items-center justify-center h-screen">
         <div class="text-center mb-8">
+
+            <div x-data="{
+                results: [],
+                checkCodecs() {
+                    const video = document.createElement('video');
+                    const codecs = [
+                        { name: 'SVT-AV1', string: 'video/mp4; codecs=&quot;av01.0.05M.08&quot;' },
+                        { name: 'AVC (H.264)', string: 'video/mp4; codecs=&quot;avc1.42E01E&quot;' }
+                    ];
+        
+                    this.results = codecs.map(codec => ({
+                        codec: codec.name,
+                        support: video.canPlayType(codec.string) || 'not supported'
+                    }));
+                }
+            }">
+                <h1>Codec Support Checker</h1>
+                <button @click="checkCodecs">Check Codec Support</button>
+                <div x-show="results.length > 0">
+                    <h2>Results:</h2>
+                    <ul>
+                        <template x-for="result in results" :key="result.codec">
+                            <li>
+                                <strong x-text="result.codec"></strong>: 
+                                <span x-text="result.support"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+
             <h1 class="text-4xl font-bold mb-4">LeRobot Dataset Visualizer</h1>
 
             <a href="https://x.com/RemiCadene/status/1825455895561859185" target="_blank" rel="noopener noreferrer" class="underline">create & train your own robots</a>
