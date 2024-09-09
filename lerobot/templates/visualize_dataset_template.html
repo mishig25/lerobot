@@ -236,7 +236,7 @@
                 init() {
                     // check if videos can play
                     const dummyVideo = document.createElement('video');
-                    const canPlayVideos = dummyVideo.canPlayType('video/mp4; codecs="av01.0.05M.08"');
+                    const canPlayVideos = dummyVideo.canPlayType('video/mp4; codecs="av01.0.05M.08"'); // codec source: https://huggingface.co/blog/video-encoding#results
                     if(!canPlayVideos){
                         this.videoCodecError = true;
                     }
