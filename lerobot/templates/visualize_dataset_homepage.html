@@ -36,13 +36,11 @@
                     {% for dataset in featured_datasets %}
                         <li><a href="/{{ dataset }}" class="text-blue-300 hover:text-blue-100 hover:underline"
                             @click.prevent="
-                 if (window.parent !== window) {
-                   let parentUrl = new URL(window.parent.location.href);
-                   parentUrl.searchParams.set('dataset', encodeURIComponent('{{ dataset }}'));
-                   window.parent.history.replaceState({}, '', parentUrl);
-                 }
-                 window.location.href = $event.target.href;
-               ">{{ dataset }}</a></li>
+         let url = new URL(window.location);
+         url.searchParams.set('dataset', 'some dbc');
+         window.history.pushState({}, '', url);
+         window.location.href = $event.target.href;
+       ">{{ dataset }}</a></li>
                     {% endfor %}
                 </ul>
             </div>
