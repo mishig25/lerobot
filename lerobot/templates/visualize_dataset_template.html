@@ -83,9 +83,9 @@
 
         <!-- Videos -->
         <div class="flex flex-wrap gap-1">
-            <p x-show="videoCodecError" class="font-medium text-orange-700">Videos could NOT play because <a href="https://en.wikipedia.org/wiki/AV1" target="_blank" class="underline">AV1</a> decoding is not available on your browser. Learn more about <a href="https://huggingface.co/blog/video-encoding" target="_blank" class="underline">LeRobot video encoding</a>.</p>
+            <p x-show="videoPlaybackError" class="font-medium text-orange-700">Videos could NOT play because <a href="https://en.wikipedia.org/wiki/AV1" target="_blank" class="underline">AV1</a> decoding is not available on your browser. Learn more about <a href="https://huggingface.co/blog/video-encoding" target="_blank" class="underline">LeRobot video encoding</a>.</p>
             {% for video_info in videos_info %}
-            <div x-show="!videoCodecError" class="max-w-96">
+            <div x-show="!videoPlaybackError" class="max-w-96">
                 <p class="text-sm text-gray-300 bg-gray-800 px-2 rounded-t-xl truncate">{{ video_info.filename }}</p>
                 <video loop muted type="video/mp4" class="min-w-64" @canplaythrough="videoCanPlay" @timeupdate="() => {
                     if (video.duration) {
@@ -104,8 +104,9 @@
                     $refs.btnPlay.classList.remove('hidden');
                     $refs.btnPause.classList.add('hidden');
                 }"
-                    @loadedmetadata="() => ($refs.timer.textContent = formatTime(0) + ' / ' + formatTime(video.duration))"
-                    @error="console.error('Error: ', $event); videoCodecError = true;">
+                    @loadedmetadata="() => { checkPlayback(); $refs.timer.textContent = formatTime(0) + ' / ' + formatTime(video.duration) }"
+                    @error="checkPlayback"
+                    @canplay="videoPlaybackError = false">
                     <source src="{{ video_info.url }}">
                     Your browser does not support the video tag.
                 </video>
@@ -231,7 +232,7 @@
                 colors: null,
                 nVideos: {{ videos_info | length }},
                 nVideoReadyToPlay: 0,
-                videoCodecError: false,
+                videoPlaybackError: false,
 
                 // alpine initialization
                 init() {
@@ -386,7 +387,18 @@
                         // start autoplay all videos in sync
                         this.$refs.btnPlay.click();
                     }
-                }
+                },
+
+                checkPlayback() {
+                    let video = this.videos[0];
+                    if (video.error) {
+                        this.videoPlaybackError = true;
+                    } else if (video.readyState === 0) {
+                        this.videoPlaybackError = true;
+                    } else if (video.networkState === 3) {
+                        this.videoPlaybackError = true;
+                    }
+                },
             };
         }
     </script>
