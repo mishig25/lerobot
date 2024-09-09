@@ -55,9 +55,9 @@
             </button>
         </div>
 
-        <details class="mt-4">
+        <details class="mt-4 max-w-full px-4">
             <summary>More example datasets</summary>
-            <ul class="list-disc list-inside max-h-28 overflow-y-auto">
+            <ul class="list-disc list-inside max-h-28 overflow-y-auto break-all">
                 {% for dataset in lerobot_datasets %}
                     <li><a href="/{{ dataset }}" class="text-blue-300 hover:text-blue-100 hover:underline">{{ dataset }}</a></li>
                 {% endfor %}
