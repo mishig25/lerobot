@@ -34,15 +34,7 @@
                 <h3 class="font-semibold mb-2 mt-4">Example Datasets:</h3>
                 <ul class="list-disc list-inside">
                     {% for dataset in featured_datasets %}
-                        <li><a href="/{{ dataset }}" class="text-blue-300 hover:text-blue-100 hover:underline"
-                            @click.prevent="
-                 if (window.parent !== window) {
-                   let parentUrl = new URL(window.parent.location.href);
-                   parentUrl.searchParams.set('dataset', encodeURIComponent('{{ dataset }}'));
-                   window.parent.history.replaceState({}, '', parentUrl);
-                 }
-                 window.location.href = $event.target.href;
-               ">{{ dataset }}</a></li>
+                        <li><a href="/{{ dataset }}" class="text-blue-300 hover:text-blue-100 hover:underline">{{ dataset }}</a></li>
                     {% endfor %}
                 </ul>
             </div>
