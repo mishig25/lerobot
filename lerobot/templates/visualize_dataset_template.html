@@ -104,8 +104,7 @@
                     $refs.btnPlay.classList.remove('hidden');
                     $refs.btnPause.classList.add('hidden');
                 }"
-                    @loadedmetadata="() => ($refs.timer.textContent = formatTime(0) + ' / ' + formatTime(video.duration))"
-                    @error="console.error('Error: ', $event); videoCodecError = true;">
+                    @loadedmetadata="() => ($refs.timer.textContent = formatTime(0) + ' / ' + formatTime(video.duration))">
                     <source src="{{ video_info.url }}">
                     Your browser does not support the video tag.
                 </video>
@@ -235,6 +234,14 @@
 
                 // alpine initialization
                 init() {
+                    // check if videos can play
+                    const dummyVideo = document.createElement('video');
+                    const canPlayVideos = dummyVideo.canPlayType('video/mp4; codecs="av01.0.05M.08"');
+                    if(!canPlayVideos){
+                        this.videoCodecError = true;
+                    }
+                    
+                    // process CSV data
                     const csvDataStr = {{ episode_data_csv_str|tojson|safe }};
                     // Create a Blob with the CSV data
                     const blob = new Blob([csvDataStr], { type: 'text/csv;charset=utf-8;' });
