@@ -227,7 +227,7 @@ def visualize_dataset_html(
             episode_data_csv_str=episode_data_csv_str,
         )
 
-    app.run(host=host, port=port, debug=True)
+    app.run(host=host, port=port)
 
 
 def main():
