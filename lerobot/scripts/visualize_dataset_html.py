@@ -63,7 +63,7 @@ import os
 from safetensors import safe_open
 
 import numpy as np
-from flask import Flask, redirect, render_template, url_for
+from flask import Flask, redirect, render_template, url_for, request
 
 from lerobot.common.utils.utils import init_logging
 import lerobot
@@ -172,6 +172,26 @@ def visualize_dataset_html(
 
     @app.route("/")
     def hommepage():
+        dataset, episode, t = None, None, None
+        all_params = request.args
+        if "dataset" in all_params:
+            dataset = all_params["dataset"]
+        if "episode" in all_params:
+            episode = int(all_params["episode"])
+        if "t" in all_params:
+            t = all_params["t"]
+
+        if dataset:
+            dataset_namespace, dataset_name = dataset.split("/")
+            return redirect(
+                url_for(
+                    "show_episode",
+                    dataset_namespace=dataset_namespace,
+                    dataset_name=dataset_name,
+                    episode_id=episode if episode is not None else 0,
+                )
+            )
+
         featured_datasets = [
             "cadene/koch_bimanual_folding",
             "lerobot/aloha_static_cups_open",

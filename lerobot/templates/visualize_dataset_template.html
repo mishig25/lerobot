@@ -222,6 +222,14 @@
     </div>
 
     <script>
+        const parentOrigin = "https://huggingface.co";
+        const searchParams = new URLSearchParams();
+        searchParams.set("dataset", "{{ dataset_info.repo_id }}");
+        searchParams.set("episode", "{{ episode_id }}");
+		window.parent.postMessage({ queryString: searchParams.toString() }, parentOrigin);
+    </script>
+
+    <script>
         function createAlpineData() {
             return {
                 // state
