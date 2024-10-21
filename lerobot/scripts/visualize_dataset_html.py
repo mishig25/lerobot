@@ -155,7 +155,7 @@ def get_episode_video_paths(df: pd.DataFrame, data_index, repo_id: str, episode_
     from_idx = data_index["from"][episode_index]
     video_columns = get_video_columns(df)
     paths = [val["path"] for val in df.loc[from_idx, video_columns].tolist()]
-    paths = [f"https://huggingface.co/datasets/{repo_id}/resolve/main/{p}" for p in paths]
+    paths = [f"https://huggingface.co/datasets/{repo_id}/resolve/v1.6/{p}" for p in paths]
     return paths
 
 
@@ -218,9 +218,9 @@ def visualize_dataset_html(
     @app.route("/<string:dataset_namespace>/<string:dataset_name>/episode_<int:episode_id>")
     def show_episode(dataset_namespace, dataset_name, episode_id):
         repo_id = f"{dataset_namespace}/{dataset_name}"
-        url_data = f"https://huggingface.co/datasets/{repo_id}/resolve/main/data/train-00000-of-00001.parquet"
+        url_data = f"https://huggingface.co/datasets/{repo_id}/resolve/v1.6/data/train-00000-of-00001.parquet"
         url_index = (
-            f"https://huggingface.co/datasets/{repo_id}/resolve/main/meta_data/episode_data_index.safetensors"
+            f"https://huggingface.co/datasets/{repo_id}/resolve/v1.6/meta_data/episode_data_index.safetensors"
         )
 
         data_index = read_remote_safetensors(url_index)
